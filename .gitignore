@@ -1,0 +1,6 @@
+ccbImg
+out
+*.pyc
+.DS_Store
+.idea/
+data
