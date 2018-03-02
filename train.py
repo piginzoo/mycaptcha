@@ -64,7 +64,7 @@ def train(image_width=75,image_height=32):
     # batch_size 太小会导致训练慢，过拟合等问题，太大会导致欠拟合。所以要适当选择
     batch_size = 50
     # 完整迭代次数
-    epochs = 50
+    epochs = 2
     #识别字符的数量    
     num_symbol = 5
     #模型的保存文件名

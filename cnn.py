@@ -60,7 +60,7 @@ def create_model(input_shape,num_classes):
 	#              metrics=['accuracy'])
 	#改成binary_crossentropy，用于多分类选多个的场景
 	#但是之前要加上一个sigmod层，参见例子：https://keras.io/getting-started/sequential-model-guide/#training
-	model.add(Dense(1, activation='sigmoid'))
+	model.add(Dense(num_classes, activation='sigmoid'))
 	model.compile( 
 			optimizer=keras.optimizers.Adadelta(),
             loss='binary_crossentropy',
