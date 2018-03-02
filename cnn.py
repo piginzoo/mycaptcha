@@ -52,9 +52,6 @@ def create_model(input_shape,num_classes):
 	# 对输入采用0.5概率的Dropout
 	model.add(Dropout(DROPOUT_RATE))
 
-	# 对刚才Dropout的输出采用softmax激活函数，得到最后结果0-9
-	#全连接层是一个36（字符数）x 5（验证码数量）
-	model.add(Dense(num_classes, activation='softmax'))
 
 	# 模型我们使用交叉熵损失函数，最优化方法选用Adadelta
 	# 这个注释掉了，categorical_crossentropy适合softmax，多分类选1个，不适合我们的场景

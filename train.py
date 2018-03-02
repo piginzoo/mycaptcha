@@ -97,7 +97,7 @@ def train(image_width=75,image_height=32):
 
     #训练期间保存checkpoint，防止整个crash
     #checkpoint_path = "num-model-{epoch:02d}-{val_acc:.2f}.hdf5" #这个是对save_best_only=False的文件名
-    checkpoint_path = "num_model_checkout.hdf5"
+    checkpoint_path = "model/checkpoint.hdf5"
     checkpoint = ModelCheckpoint(checkpoint_path, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
 
     # 令人兴奋的训练过程
