@@ -21,7 +21,6 @@ from keras.callbacks import ModelCheckpoint
 import label,image_process,cnn,debug,crash_debug
 import logging as logger
 
-
 '''
     实现两个网络，分别实现识别字符数，识别字符。
 
@@ -55,26 +54,54 @@ import logging as logger
     3. 交叉熵函数如何书写？      
         好问题，还不知道呢，一会儿研究
 '''
+letters = list('0123456789abcdefghijklmnopqrstuvwxyz')
+weight_decay = 0.001
 
-def predict(imgpath):
+# batch_size 太小会导致训练慢，过拟合等问题，太大会导致欠拟合。所以要适当选择
+batch_size = 50
+# 完整迭代次数
+epochs = 50
+#识别字符的数量    
+num_symbol = 5
+#模型的保存文件名
+#model_name = 'model/checkpoint.hdf5' #checkpoint model，训练crash的时候用
+model_name = 'model/mycaptcha.h5'    #正式的model
+num_classes = len(letters)*num_symbol
 
-    letters = list('0123456789abcdefghijklmnopqrstuvwxyz')
-    weight_decay = 0.001
-    data_dir = "data"
-    # batch_size 太小会导致训练慢，过拟合等问题，太大会导致欠拟合。所以要适当选择
-    batch_size = 50
-    # 完整迭代次数
-    epochs = 50
-    #识别字符的数量    
-    num_symbol = 5
-    #模型的保存文件名
-    #model_name = 'model/checkpoint.hdf5' #checkpoint model，训练crash的时候用
-    model_name = 'model/mycaptcha.h5'    #正式的model
 
-    num_classes = len(letters)*num_symbol
+num_model = None
 
+#入参是一个批量目录，出参是批量的字符串
+#会判断否正确，以及整体正确率
+def evalutate(image_dir,image_width=75,image_height=32):
+    
+    x,y = image_process.load_all_image_by_dir(image_dir)
+
+    if not os.path.exists(model_name):
+        raise Exception("模型文件%s不存在" % model_name)
+        return 
+
+    global num_model    
+    if None == num_model:
+        num_model = load_model(model_name)
+        logger.debug("加载已经存在的训练模型%s",model_name)
+
+    #确定维度,不包含第一个维度，也就是图片数量,1是指1个颜色通道    
+    input_shape = (image_height,image_width,1)
+
+    if K.image_data_format() == 'channels_first': 
+        input_shape = (1,image_height,image_width)
+    
+    #predict(self, x, batch_size=None, verbose=0, steps=None)
+    e = num_model.evaluate(x,y,batch_size=100,verbose=0)
+    logger.debug(num_model.metrics_names)
+    logger.debug("模型评估结果：%r",e)
+    
+
+#入参是一张图片的全路径，出参数是预测的字符串
+def predict(img_full_path,image_width=75,image_height=32):
     #x,y
-    img_data, img_name = image_process.preprocess_image(imgpath)
+    img_data, img_name = image_process.preprocess_image(img_full_path)
     x= img_data
     y = label.label2vector(img_name)
 
@@ -83,8 +110,10 @@ def predict(imgpath):
         raise Exception("模型文件%s不存在" % model_name)
         return 
 
-    num_model = load_model(model_name)
-    logger.info("加载已经存在的训练模型%s",model_name)
+    global num_model    
+    if None == num_model:
+        num_model = load_model(model_name)
+        logger.debug("加载已经存在的训练模型%s",model_name)
 
     #确定维度    
     input_shape = (image_height,image_width,1)   #这个shape不包含第一个维度，也就是图片数量
@@ -92,12 +121,34 @@ def predict(imgpath):
         input_shape = (1,image_height,image_width)
     
     #predict(self, x, batch_size=None, verbose=0, steps=None)
-    _y = num_model.predict_classes(x,batch_size=1,verbose=1)
+    _y = num_model.predict(x,batch_size=1,verbose=0)
 
     #不知道预测出来的是什么，所以，我要先看看
     logger.debug("模型预测出来的结果是：%r",_y)
+    logger.debug("预测结果shape是：%r",_y.shape)
+    logger.debug("预测结果Sum为:%r",np.sum(_y))
+    return label.vector2label(_y)
 
-    #label.vector2label(_y)
+#正确率太TMD高了，搞的我都毛了，我要自己挨个试试
+#这个函数没啥用，就是自己肉眼测试，看结果用的，所谓眼见为实
+def test_1000():
+    file_list = os.listdir("data/validate/")
+
+    ok,fail = 0,0
+
+    for file in file_list:
+        result = predict("data/validate/"+file) #识别出来的
+        label = file.split(".")[0] #原本是
+        if result != label:
+            ok+=1
+            logger.error("标签%s和预测结果%s不一致!!!!!!!",label,result)
+        else:
+            fail+=1
+            logger.info("标签%s vs 预测结果%s",label,result)
+
+    logger.info("预测对%d vs 预测错%d",ok,fail)        
 
 if __name__ == '__main__':
-    predict("data/6adwf.jpg")
+    #predict("data/train/6adwf.jpg")
+    #evalutate("data/validate/")
+    test_1000()

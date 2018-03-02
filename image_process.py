@@ -145,7 +145,7 @@ def load_all_image_by_dir(path,image_width=75,image_height=32):
   		if (one_img is None): continue
   		#加入数组
   		data.append(one_img)
-  		label.append(label_process.label(img_name))
+  		label.append(label_process.label2vector(img_name))
   		
 
   	#把数组堆叠到一起形成一个[20000,100,36,1]的张量	
