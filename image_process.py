@@ -18,6 +18,7 @@
 		2018/2
 #------------------------------------------------------------------------------------------
 '''
+
 import numpy as np
 import cv2
 import logging as logger
@@ -30,8 +31,9 @@ from skimage import color
 import math
 from skimage import data,filters
 from skimage.morphology import disk
-
-# from keras import backend as K
+import debug,crash_debug
+from keras import backend as K
+import label as label_process
 
 def dump_array_detail(arr):
 	logger.debug("Dump the array:")
@@ -41,7 +43,7 @@ def dump_array_detail(arr):
 def output_img(name,img):
 	file_name = os.path.basename(name)
 	#调试用，不用打开了，否则，20000张图片，会撑爆硬盘的
-	cv2.imwrite("out/"+file_name+'.jpg',img)
+	#cv2.imwrite("out/"+file_name+'.jpg',img)
 
 def preprocess_image(imgname,width=75,height=32):
 	#print imgname
@@ -49,7 +51,6 @@ def preprocess_image(imgname,width=75,height=32):
 	file_name = imgname.split(".")[0].split("/")[1]
 
 	
-
 	#按照灰度读入
 	img = cv2.imread(imgname, cv2.IMREAD_GRAYSCALE)
 	if(img is None):
@@ -101,18 +102,21 @@ def preprocess_image(imgname,width=75,height=32):
 	else:
 		t = cv2.resize(t, (width, height))
 
-	# output_img(file_name+"规范大小",t*255)#*255是为了变成白色的用于显示
+	#output_img(file_name+"规范大小",t*255)#*255是为了变成白色的用于显示
+
+	
+	#同时把原来白色的地方变成1，黑的地方为0，这个是训练要求，有数字显示的地方是1，没有的是0
+	t = t > 0
 
 	#变成一个四维numpy.ndarray,为了和[图片个数？,image channel,height,width]
-	#同时把原来白色的地方变成1，黑的地方为0，不知道为何这样做的目的？？？
-	# if K.image_data_format() == 'channels_first':
-	I = t.astype(np.float32).reshape((1, 1, height, width)) 
-	# else:
-	# 	I = I.astype(np.float32).reshape((1, 36, 100, 1)) 
+	#tensorflow和thenano的格式要求不一样，图像通道的位置反着，烦人，做一下处理
+	if K.image_data_format() == 'channels_first':
+		I = t.astype(np.float32).reshape((1, 1, height, width)) 
+	else:
+	 	I = t.astype(np.float32).reshape((1, height, width, 1)) 
 
-	logger.debug( "I:%r",I.shape)
-	logger.debug(type(I))
-	return I
+	logger.debug( "图像数据:%r",I.shape)
+	return I,file_name #返回一个图像的矩阵，和文件的名字，这个名字就是标签
 
 
 #"data/"
@@ -120,9 +124,10 @@ def preprocess_image(imgname,width=75,height=32):
 #20000是图片数
 #1是图像通道，灰度的
 #100x36图像
-def load_all_image_by_dir(path):
+def load_all_image_by_dir(path,image_width=75,image_height=32):
 	start = t.time()
   	data = []
+  	label = []
   	file_list = os.listdir(path)
   	debug_count = 0
 
@@ -133,35 +138,33 @@ def load_all_image_by_dir(path):
   		# print file
   		if (file.find(".jpg")==-1): continue
 
-  		one_img = preprocess_image(path+file)
+  		one_img,img_name = preprocess_image(path+file,image_width,image_height)
   		if (one_img is None): continue
   		#加入数组
   		data.append(one_img)
+  		label.append(label_process.label(img_name))
   		
 
   	#把数组堆叠到一起形成一个[20000,100,36,1]的张量	
-  	#new_data = np.vstack(data)
+  	image_data = np.vstack(data)
+
+  	label_data = np.vstack(label)
 	
-	
-  	logger.info("images data loaded:%r",new_data.shape)
+  	logger.info("images data loaded:%r",image_data.shape)
   	end = t.time()
   	logger.info("加载图像使用了%d秒...",(end-start))
 
-  	return new_data
+  	return image_data,label_data
 
 if __name__ == '__main__':
 
-	# 设置默认的level为DEBUG
-	# 设置log的格式
-	logger.basicConfig(
-	    level=logger.DEBUG,
-	    format="[%(levelname)s] %(message)s"
-	)
+	
 	#建行的验证码尺寸
 	IMG_WIDTH = 75
 	IMG_HEIGHT = 32
 	#测试整个data目录下的图片处理
-  	load_all_image_by_dir("data/")
+  	data,label = load_all_image_by_dir("data/",IMG_WIDTH,IMG_HEIGHT)
+  	logger.debug("加载了图像：%r,标签：%r",data.shape,label.shape)
   	#测试单张图片，可以看out输出
 	#preprocess_image("data/99uwf.jpg",IMG_WIDTH,IMG_HEIGHT)  	
   	

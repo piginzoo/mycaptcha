@@ -1,4 +1,8 @@
 ccbImg
+newdata
+log
+model
+num_model_checkout.hdf5
 out
 *.pyc
 .DS_Store

@@ -18,9 +18,9 @@ from keras.callbacks import TensorBoard
 from keras.models import load_model
 from keras.callbacks import ModelCheckpoint
 
-import input_image,input_label,cnn
+import label,image_process,cnn,debug,crash_debug
 import logging as logger
-import crash_debug
+
 
 '''
     实现两个网络，分别实现识别字符数，识别字符。
@@ -32,42 +32,49 @@ import crash_debug
     3.该如何输出呢？
     4.如何验证正确率和loss？loss是错误率么？是一个batch评价一次么？
     其他问题：
-      - 去研究一下minst的数据加载，如何填充(？, 1, 36, 100)第一个维度的？
+      - 去研究一下minst的数据加载，如何填充(？, 1, image_height, image_width)第一个维度的？
           应该是一次都加载进去么？
 
+
+    样本数据，有几个特点，所有的他的可能组合是0-9,a-z,A-Z，合计是62个，不包含大写的有36个
+    切割方法由于存在粘连，识别起来比较费劲，所以，这个模型里面采用的直接识别，
+    当然后续也可以去切割出来，即使粘连，可能还是可以单个识别的吧，但是后面再做尝试了。
+
+    那么粘连在一起的时候，识别的就变成了一个多分类问题，而不是单分类问题了，
+    也就是说，我几个数字一起识别，那么就有以下几个问题：
+    1. 怎么识别多个字母？
+        这里的解决办法，是靠经验判断大多数是几个字母，
+        比如大多数是4位的，极少数是5个，那么就放弃5个的，直接认为是4分类。
+        但是我认为如果超过5%的少数，就得按照少数来吧。
+        那么当定义为5位的时候，那么4位的缺失就用个padding代替吧，比如"_",程序自行判断是个padding吧
+
+    2. 对于多分类，label的vector如何构建？
+        对于单分类，我们都是知道是构建一个one-hot的概率向量，然后和结果做交叉熵
+        对于多分类，就构建一个one-hot概率向量组成的张量呗，然后继续交叉熵
+
+    3. 交叉熵函数如何书写？      
+        好问题，还不知道呢，一会儿研究
 '''
 
-if __name__ == '__main__':
-
-    # 设置默认的level为DEBUG
-    # 设置log的格式
-    logger.basicConfig(
-        level=logger.INFO,
-        format="[%(levelname)s] %(message)s"
-    )
-
+def train(image_width=75,image_height=32):
 
     letters = list('0123456789abcdefghijklmnopqrstuvwxyz')
     weight_decay = 0.001
-
-    image_dir = "image/type5_train/images/"
-    label_path = "image/type5_train/type5_train.csv"
-
+    data_dir = "data"
     # batch_size 太小会导致训练慢，过拟合等问题，太大会导致欠拟合。所以要适当选择
     batch_size = 50
     # 完整迭代次数
-    epochs = 5
+    epochs = 50
+    #识别字符的数量    
+    num_symbol = 5
+    #模型的保存文件名
+    model_name = 'model/mycaptcha.h5'
 
-    #3:表示就3中结果4，5，6个字符    
-    num_classes = 3
-
-    model_name = 'model/num_model.h5'
+    num_classes = len(letters)*num_symbol
 
     # 训练集
-    x_train = input_image.load_all_image_by_dir(image_dir)
-    y_train = input_label.load_label(label_path)
-    # 把4,5,6变成 one-hot verctor
-    y_train = keras.utils.np_utils.to_categorical(y_train - 4, num_classes)
+    x_train,y_train = image_process.load_all_image_by_dir('newdata/')
+
 
     if os.path.exists(model_name):
         num_model = load_model(model_name)
@@ -75,10 +82,10 @@ if __name__ == '__main__':
     else:
         logger.info("创建识别字符长度的模型")
         input_shape = None 
-        if K.image_data_format() == 'channels_first':
-            input_shape = (1,36,100)
+        if K.image_data_format() == 'channels_first': 
+            input_shape = (1,image_height,image_width)
         else:
-            input_shape = (36,100,1)   #这个shape不包含第一个维度，也就是图片数量
+            input_shape = (image_height,image_width,1)   #这个shape不包含第一个维度，也就是图片数量
 
         
         #定义寻找字符个数的CNN
