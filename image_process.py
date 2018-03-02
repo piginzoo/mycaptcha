@@ -45,6 +45,9 @@ def output_img(name,img):
 	#调试用，不用打开了，否则，20000张图片，会撑爆硬盘的
 	#cv2.imwrite("out/"+file_name+'.jpg',img)
 
+#加载一个图像
+#入参是图像路径，要全路径，如 /usr/test/aaaaa.jpg
+#出参是图像数据(ndarry的)，和图像的标签（文件名，这里就是'aaaaa'）
 def preprocess_image(imgname,width=75,height=32):
 	#print imgname
 	#print imgname.split(".")[0].split("/")[1]
