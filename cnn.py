@@ -25,10 +25,12 @@ from keras.layers import Conv2D, MaxPooling2D
 from keras import backend as K
 import logging as logger
 from keras import utils 
-
+from keras.models import load_model
 
 DROPOUT_RATE = 0.25
+MAX_CAPTCHA = 5
 letters = list('0123456789abcdefghijklmnopqrstuvwxyz')
+CHAR_SET_LEN = len(letters)
 
 #此函数很重要。别看短。
 #他是用来告诉tensorflow，你预测出来的和我给的label是否一致，
@@ -43,38 +45,44 @@ letters = list('0123456789abcdefghijklmnopqrstuvwxyz')
 #最后，把y_pred转成onehots后,在用backend的k_all比较得出结论
 def custom_accuracy(y_true, y_pred):
 
-	length = len(letters)
-	print (y_pred)
-	print (y_pred.shape)
-	print (y_pred.shape[1].value)
-	print (type(y_pred.shape[1].value))
-	batch_size = y_pred.shape[1].value
-	logger.debug("Batch size:%d",batch_size)
+    predict = tf.reshape(y_pred, [-1, MAX_CAPTCHA, CHAR_SET_LEN])
+    max_idx_p = tf.argmax(predict, 2)
+    max_idx_l = tf.argmax(tf.reshape(y_true, [-1, MAX_CAPTCHA, CHAR_SET_LEN]), 2)
+    correct_pred = tf.equal(max_idx_p, max_idx_l)
+    return tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
-	tf.Print(y_true,[y_true],"y_true",summarize=20,first_n=5)
-	tf.Print(y_pred,[y_pred],"y_pred",summarize=20,first_n=5)
+	# length = len(letters)
+	# print (y_pred)
+	# print (y_pred.shape)
+	# print (y_pred.shape[1].value)
+	# print (type(y_pred.shape[1].value))
+	# batch_size = y_pred.shape[1].value
+	# logger.debug("Batch size:%d",batch_size)
 
-	y_pred_reshape = K.reshape(y_pred,(-1,length))
-	indexs = K.argmax(y_pred_reshape,axis=0)
-	# one_hots = utils.to_categorical(indexs,length)
-	_index = tf.expand_dims(indexs,1)
-	sequence = tf.expand_dims(tf.range(0, length,dtype=tf.int64),1)#我觉得sparse_to_dense要这个变量有屁用啊？！
-	concated = tf.concat(values=[sequence,_index],axis=1)
-	one_hots = tf.sparse_to_dense(
-		sparse_indices=concated, 
-		output_shape=(batch_size,length), 
-		sparse_values=1, 
-		default_value=0)
+	# tf.Print(y_true,[y_true],"y_true",summarize=20,first_n=5)
+	# tf.Print(y_pred,[y_pred],"y_pred",summarize=20,first_n=5)
 
-	y_pred_one_hots = tf.concat(one_hots,axis=1)
+	# y_pred_reshape = K.reshape(y_pred,(-1,length))
+	# indexs = K.argmax(y_pred_reshape,axis=0)
+	# # one_hots = utils.to_categorical(indexs,length)
+	# _index = tf.expand_dims(indexs,1)
+	# sequence = tf.expand_dims(tf.range(0, length,dtype=tf.int64),1)#我觉得sparse_to_dense要这个变量有屁用啊？！
+	# concated = tf.concat(values=[sequence,_index],axis=1)
+	# one_hots = tf.sparse_to_dense(
+	# 	sparse_indices=concated, 
+	# 	output_shape=(batch_size,length), 
+	# 	sparse_values=1, 
+	# 	default_value=0)
 
-	logger.debug("TF内部评估的标签是：%r",y_true)
-	logger.debug("TF内部评估的预测是：%r",y_pred_one_hots)
+	# y_pred_one_hots = tf.concat(one_hots,axis=1)
 
-	#return K.mean(K.equal(y_pred,y_true))
+	# logger.debug("TF内部评估的标签是：%r",y_true)
+	# logger.debug("TF内部评估的预测是：%r",y_pred_one_hots)
 
-	return K.mean(K.equal(y_pred_one_hots,
-	 	tf.cast(y_true,tf.int32)))
+	# #return K.mean(K.equal(y_pred,y_true))
+
+	# return K.mean(K.equal(y_pred_one_hots,
+	#  	tf.cast(y_true,tf.int32)))
 
 
 #input_shape，主要是确认
@@ -126,6 +134,11 @@ def create_model(input_shape,num_classes):
             metrics=['accuracy',custom_accuracy])
 
 	return model 
+
+
+def load_model(model_name):
+	return keras.models.load_model(model_name,
+    	custom_objects={'custom_accuracy': custom_accuracy})
 
 
 if __name__ == '__main__':

@@ -83,7 +83,7 @@ def evaluate(image_dir,image_width=75,image_height=32):
 
     global num_model    
     if None == num_model:
-        num_model = load_model(model_name)
+        num_model = cnn.load_model(model_name)
         logger.debug("加载已经存在的训练模型%s",model_name)
 
     #确定维度,不包含第一个维度，也就是图片数量,1是指1个颜色通道    
@@ -120,7 +120,7 @@ def predict(img_full_path,image_width=75,image_height=32):
 
     global num_model    
     if None == num_model:
-        num_model = load_model(model_name)
+        num_model = cnn.load_model(model_name)
         logger.debug("加载已经存在的训练模型%s",model_name)
 
     #确定维度    
@@ -148,10 +148,10 @@ def test_1000():
         result = predict("data/validate/"+file) #识别出来的
         label = file.split(".")[0] #原本是
         if result != label:
-            ok+=1
+            fail+=1
             logger.error("标签%s和预测结果%s不一致!!!!!!!",label,result)
         else:
-            fail+=1
+            ok+=1
             logger.info("标签%s vs 预测结果%s",label,result)
 
     logger.info("预测对%d vs 预测错%d",ok,fail)        

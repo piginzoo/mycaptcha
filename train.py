@@ -15,7 +15,7 @@ from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.regularizers import l2
 from keras import backend as K
 from keras.callbacks import TensorBoard  
-from keras.models import load_model
+
 from keras.callbacks import ModelCheckpoint
 
 import label,image_process,cnn,debug,crash_debug
@@ -73,10 +73,10 @@ def train(image_width=75,image_height=32):
     num_classes = len(letters)*num_symbol
 
     # 训练集
-    x_train,y_train = image_process.load_all_image_by_dir('data/train_small/')
+    x_train,y_train = image_process.load_all_image_by_dir('data/train/')
 
     if os.path.exists(model_name):
-        num_model = load_model(model_name)
+        num_model = cnn.load_model(model_name)
         logger.info("加载已经存在的训练模型%s",model_name)
     else:
         logger.info("创建识别字符长度的模型")
@@ -92,7 +92,6 @@ def train(image_width=75,image_height=32):
 
         #定义判断字符的CNN
         #char_model = cnn.create_model()
-
 
     #训练期间保存checkpoint，防止整个crash
     #checkpoint_path = "num-model-{epoch:02d}-{val_acc:.2f}.hdf5" #这个是对save_best_only=False的文件名
