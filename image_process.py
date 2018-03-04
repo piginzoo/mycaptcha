@@ -51,7 +51,7 @@ def output_img(name,img):
 def preprocess_image(imgname,width=75,height=32):
 	#print imgname
 	#print imgname.split(".")[0].split("/")[1]
-	file_name = imgname.split(".")[0].split("/")[1]
+	file_name = imgname.split(".")[0].split("/")[-1]
 
 	
 	#按照灰度读入

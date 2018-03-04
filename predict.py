@@ -73,7 +73,7 @@ num_model = None
 
 #入参是一个批量目录，出参是批量的字符串
 #会判断否正确，以及整体正确率
-def evalutate(image_dir,image_width=75,image_height=32):
+def evaluate(image_dir,image_width=75,image_height=32):
     
     x,y = image_process.load_all_image_by_dir(image_dir)
 
@@ -93,9 +93,17 @@ def evalutate(image_dir,image_width=75,image_height=32):
         input_shape = (1,image_height,image_width)
     
     #predict(self, x, batch_size=None, verbose=0, steps=None)
-    e = num_model.evaluate(x,y,batch_size=100,verbose=0)
-    logger.debug(num_model.metrics_names)
-    logger.debug("模型评估结果：%r",e)
+    e = num_model.evaluate(x,y,batch_size=500,verbose=0)
+    #此处有问题，我评测的时候，y是我的验证结果集，而模型跑出来的是一个180维度向量
+    #它怎么就判断这个模型结果和y就是一样的呢？
+    #我可以自己通过找出180 reshape成5个向量后，寻找每个向量里面最大的那个下标确定的结果的
+    #也就是说，我是通过外面的代码自己实现的，模型内部肯定是做不了这个的
+    #除非我给他传入一个正确判断的函数进去
+    logger.info(num_model.metrics_names)
+    logger.info("评估结果,正确率：%f，损失值：%f",e[1],e[0])
+    # score = model.evaluate(x_test, y_test, verbose=0)
+    # print('Test loss:', score[0])
+    # print('Test accuracy:', score[1])    
     
 
 #入参是一张图片的全路径，出参数是预测的字符串
@@ -149,6 +157,6 @@ def test_1000():
     logger.info("预测对%d vs 预测错%d",ok,fail)        
 
 if __name__ == '__main__':
-    #predict("data/train/6adwf.jpg")
-    #evalutate("data/validate/")
-    test_1000()
+    print( predict("data/train_small/k3cc7.jpg"))
+    #evaluate("data/validate/")
+    #test_1000()

@@ -26,9 +26,12 @@ def label2vector(file_name,max_len=5):
 	
 	char_index=[]
 	for c in file_name:
-		i = letters.index(c)
-		char_index.append(i)
-
+		try:
+			i = letters.index(c)
+			char_index.append(i)
+		except ValueError as e:
+			logger.error("出现无法识别字符%s,文件全名为%s",c,file_name)
+		
 	if length > max_len:
 		logger.debug("长度长了")
 		char_index = char_index[:max_len]

@@ -64,7 +64,7 @@ def train(image_width=75,image_height=32):
     # batch_size 太小会导致训练慢，过拟合等问题，太大会导致欠拟合。所以要适当选择
     batch_size = 50
     # 完整迭代次数
-    epochs = 2
+    epochs = 10
     #识别字符的数量    
     num_symbol = 5
     #模型的保存文件名
@@ -73,8 +73,7 @@ def train(image_width=75,image_height=32):
     num_classes = len(letters)*num_symbol
 
     # 训练集
-    x_train,y_train = image_process.load_all_image_by_dir('newdata/')
-
+    x_train,y_train = image_process.load_all_image_by_dir('data/train_small/')
 
     if os.path.exists(model_name):
         num_model = load_model(model_name)
@@ -116,3 +115,6 @@ def train(image_width=75,image_height=32):
     # score = model.evaluate(x_test, y_test, verbose=0)
     # print('Test loss:', score[0])
     # print('Test accuracy:', score[1])
+
+if __name__ == '__main__':
+    train()

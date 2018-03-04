@@ -17,13 +17,65 @@
 '''  
 from __future__ import print_function
 import keras
+import tensorflow as tf
 from keras.datasets import mnist
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 from keras import backend as K
+import logging as logger
+from keras import utils 
+
 
 DROPOUT_RATE = 0.25
+letters = list('0123456789abcdefghijklmnopqrstuvwxyz')
+
+#此函数很重要。别看短。
+#他是用来告诉tensorflow，你预测出来的和我给的label是否一致，
+#tf预测出来的是一个杂乱无章的180维向量，而label是一个onehot的，
+#例如：预测是[0.02,0.031,..,0.35,..,0.12]，label是[0,0..,1,..,0]
+#那么我们处理方式如下，先把预测变成one-hot的，使用argmax+to_categorical,
+#但是这个是在tf的session里面跑的，无法直接使用
+#会报类似于的错： 
+#ValueError: No default session is registered. 
+#Use `with sess.as_default()` or pass an explicit session to `eval(session=sess)`
+#所以，解决办法就是使用Keras的backend，也就是tf的张量函数来处理
+#最后，把y_pred转成onehots后,在用backend的k_all比较得出结论
+def custom_accuracy(y_true, y_pred):
+
+	length = len(letters)
+	print (y_pred)
+	print (y_pred.shape)
+	print (y_pred.shape[1].value)
+	print (type(y_pred.shape[1].value))
+	batch_size = y_pred.shape[1].value
+	logger.debug("Batch size:%d",batch_size)
+
+	tf.Print(y_true,[y_true],"y_true",summarize=20,first_n=5)
+	tf.Print(y_pred,[y_pred],"y_pred",summarize=20,first_n=5)
+
+	y_pred_reshape = K.reshape(y_pred,(-1,length))
+	indexs = K.argmax(y_pred_reshape,axis=0)
+	# one_hots = utils.to_categorical(indexs,length)
+	_index = tf.expand_dims(indexs,1)
+	sequence = tf.expand_dims(tf.range(0, length,dtype=tf.int64),1)#我觉得sparse_to_dense要这个变量有屁用啊？！
+	concated = tf.concat(values=[sequence,_index],axis=1)
+	one_hots = tf.sparse_to_dense(
+		sparse_indices=concated, 
+		output_shape=(batch_size,length), 
+		sparse_values=1, 
+		default_value=0)
+
+	y_pred_one_hots = tf.concat(one_hots,axis=1)
+
+	logger.debug("TF内部评估的标签是：%r",y_true)
+	logger.debug("TF内部评估的预测是：%r",y_pred_one_hots)
+
+	#return K.mean(K.equal(y_pred,y_true))
+
+	return K.mean(K.equal(y_pred_one_hots,
+	 	tf.cast(y_true,tf.int32)))
+
 
 #input_shape，主要是确认
 def create_model(input_shape,num_classes):
@@ -61,55 +113,29 @@ def create_model(input_shape,num_classes):
 	#改成binary_crossentropy，用于多分类选多个的场景
 	#但是之前要加上一个sigmod层，参见例子：https://keras.io/getting-started/sequential-model-guide/#training
 	model.add(Dense(num_classes, activation='sigmoid'))
+
+    #此处有问题，我评测的时候，y是我的验证结果集，而模型跑出来的是一个180维度向量
+    #它怎么就判断这个模型结果和y就是一样的呢？
+    #我可以自己通过找出180 reshape成5个向量后，寻找每个向量里面最大的那个下标确定的结果的
+    #也就是说，我是通过外面的代码自己实现的，模型内部肯定是做不了这个的
+    #除非我给他传入一个正确判断的函数进去
+
 	model.compile( 
 			optimizer=keras.optimizers.Adadelta(),
             loss='binary_crossentropy',
-            metrics=['accuracy'])
+            metrics=['accuracy',custom_accuracy])
 
 	return model 
 
 
 if __name__ == '__main__':
-	# batch_size 太小会导致训练慢，过拟合等问题，太大会导致欠拟合。所以要适当选择
-	batch_size = 128
-	# 0-9手写数字一个有10个类别
-	num_classes = 10
-	# 12次完整迭代，差不多够了
-	epochs = 4
-	# 输入的图片是28*28像素的灰度图
-	img_rows, img_cols = 28, 28
-	# 训练集，测试集收集非常方便
-	(x_train, y_train), (x_test, y_test) = mnist.load_data()
-	 
-	# keras输入数据有两种格式，一种是通道数放在前面，一种是通道数放在后面，
-	# 其实就是格式差别而已
-	if K.image_data_format() == 'channels_first':
-	    x_train = x_train.reshape(x_train.shape[0], 1, img_rows, img_cols)
-	    x_test = x_test.reshape(x_test.shape[0], 1, img_rows, img_cols)
-	    input_shape = (1, img_rows, img_cols)
-	else:
-	    x_train = x_train.reshape(x_train.shape[0], img_rows, img_cols, 1)
-	    x_test = x_test.reshape(x_test.shape[0], img_rows, img_cols, 1)
-	    input_shape = (img_rows, img_cols, 1)
-	# 把数据变成float32更精确
-	x_train = x_train.astype('float32')
-	x_test = x_test.astype('float32')
-	x_train /= 255
-	x_test /= 255
-	print('x_train shape:', x_train.shape)
-	print(x_train.shape[0], 'train samples')
-	print(x_test.shape[0], 'test samples')
-	# 把类别0-9变成2进制，方便训练
-	y_train = keras.utils.np_utils.to_categorical(y_train, num_classes)
-	y_test = keras.utils.np_utils.to_categorical(y_test, num_classes)
-
-
-	model = create_model(input_shape,num_classes)
-
-	# 令人兴奋的训练过程
-	model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs,
-	          verbose=1, validation_data=(x_test, y_test))
-
-	score = model.evaluate(x_test, y_test, verbose=0)
-	print('Test loss:', score[0])
-	print('Test accuracy:', score[1])
+	global letters
+	letters = "123"
+	import numpy as np
+	a_true = np.array([[0,1,0],[0,1,0]])
+	b_true = np.array([[0.5,1.2,0.3],[0.51,1.21,0.13]])
+	print (custom_accuracy(a_true,b_true))#should be true
+	a_true = np.array([[0,1,0]])
+	b_true = np.array([[1.5,0.2,0.3]])
+	print (custom_accuracy(a_true,b_true))#should be false
+	
